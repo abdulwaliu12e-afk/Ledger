@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Ledger</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #1c1f24;
+    --surface: #23272e;
+    --rule: #383d46;
+    --rule-soft: #2c3038;
+    --text: #ece9e2;
+    --muted: #8b9099;
+    --amber: #d9a441;
+    --green: #6f9b76;
+    --brick: #c3573f;
+  }
+  *{ box-sizing: border-box; }
+  @media (prefers-reduced-motion: reduce){
+    *{ transition: none !important; animation: none !important; }
+  }
+  body{
+    margin:0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  #app{
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 28px 18px 60px;
+  }
+  .eyebrow{
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 0 0 4px;
+  }
+  h1{
+    font-family:'IBM Plex Mono', monospace;
+    font-weight: 600;
+    font-size: 22px;
+    margin: 0 0 22px;
+    letter-spacing: 0.02em;
+  }
+  .total-block{
+    margin-bottom: 30px;
+  }
+  .total-label{
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .total-figure{
+    font-family:'IBM Plex Mono', monospace;
+    font-weight: 700;
+    font-size: 44px;
+    line-height: 1.1;
+    margin: 4px 0 8px;
+    border-bottom: 3px double var(--rule);
+    padding-bottom: 10px;
+    display: inline-block;
+  }
+  .total-figure.owed{ color: var(--brick); }
+  .total-figure.clear{ color: var(--green); }
+  .total-actions{ margin-top: 8px; }
+
+  .panel{
+    margin-bottom: 28px;
+  }
+  .panel-head{
+    display:flex;
+    justify-content: space-between;
+    align-items: baseline;
+    border-bottom: 1px solid var(--rule);
+    padding-bottom: 8px;
+    margin-bottom: 12px;
+  }
+  .panel-title{
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 13px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text);
+  }
+  .panel-sub{
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .row{
+    display:flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 9px 0;
+    border-bottom: 1px solid var(--rule-soft);
+    font-size: 14px;
+  }
+  .row:last-child{ border-bottom: none; }
+  .row-date{
+    font-family:'IBM Plex Mono', monospace;
+    color: var(--muted);
+    font-size: 12px;
+    min-width: 64px;
+  }
+  .row-mid{ flex:1; padding: 0 10px; }
+  .badge{
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    padding: 2px 7px;
+  }
+  .badge.ontime{ color: var(--green); border:1px solid var(--green); }
+  .badge.late{ color: var(--amber); border:1px solid var(--amber); }
+  .badge.missed{ color: var(--brick); border:1px solid var(--brick); }
+  .badge.waiting{ color: var(--amber); border:1px solid var(--amber); }
+  .badge.bought{ color: var(--muted); border:1px solid var(--rule); }
+  .badge.skipped{ color: var(--green); border:1px solid var(--green); }
+  .badge.violated{ color: var(--brick); border:1px solid var(--brick); }
+
+  .empty{
+    color: var(--muted);
+    font-size: 13px;
+    padding: 10px 0;
+  }
+
+  .btn{
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 13px;
+    letter-spacing: 0.04em;
+    background: transparent;
+    color: var(--text);
+    border: 1px solid var(--text);
+    padding: 10px 16px;
+    cursor: pointer;
+    width: 100%;
+  }
+  .btn:hover{ background: var(--surface); }
+  .btn:focus-visible{ outline: 2px solid var(--amber); outline-offset: 2px; }
+  .btn-row{ display:flex; gap:8px; }
+  .btn-row .btn{ width: auto; flex:1; }
+  .btn-quiet{
+    border-color: var(--rule);
+    color: var(--muted);
+  }
+  .link-break{
+    background:none; border:none; padding:0;
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--brick);
+    opacity: 0.65;
+    cursor: pointer;
+    text-decoration: underline;
+  }
+  .link-break:hover{ opacity: 1; }
+
+  .field{ margin-bottom: 12px; }
+  .field label{
+    display:block;
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 4px;
+  }
+  .field input{
+    width: 100%;
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    color: var(--text);
+    padding: 9px 10px;
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 14px;
+  }
+  .field input:focus-visible{ outline: 2px solid var(--amber); }
+
+  .countdown{
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 12px;
+    color: var(--amber);
+  }
+  .countdown.ready{ color: var(--green); }
+
+  details{ margin-top: 6px; }
+  summary{
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    cursor: pointer;
+    padding: 6px 0;
+  }
+  .settings-box{
+    border: 1px solid var(--rule);
+    padding: 14px;
+    margin-top: 8px;
+  }
+
+  .footer-note{
+    font-size: 11px;
+    color: var(--muted);
+    text-align: center;
+    margin-top: 36px;
+    line-height: 1.6;
+  }
+  .footer-note button{
+    background:none; border:none;
+    color: var(--muted);
+    text-decoration: underline;
+    font-size: 11px;
+    cursor: pointer;
+    padding:0;
+  }
+</style>
+</head>
+<body>
+<div id="app">Loading…</div>
+
+<script>
+let state = null;
+let confirmBreakId = null;
+let confirmPay = false;
+let confirmReset = false;
+let addWantOpen = false;
+
+function pad(n){ return n < 10 ? '0' + n : '' + n; }
+function dateStr(d){ return d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate()); }
+function todayStr(){ return dateStr(new Date()); }
+function addDays(ds, n){
+  const [y,m,d] = ds.split('-').map(Number);
+  const dt = new Date(y, m-1, d);
+  dt.setDate(dt.getDate() + n);
+  return dateStr(dt);
+}
+function fmtMoney(n){ return '$' + Math.abs(n).toFixed(2); }
+function fmtClock(d){
+  let h = d.getHours(), m = d.getMinutes();
+  const ap = h >= 12 ? 'PM' : 'AM';
+  h = h % 12; if(h === 0) h = 12;
+  return h + ':' + pad(m) + ' ' + ap;
+}
+
+function defaultState(){
+  return {
+    settings: { wakeTarget: '06:30', grace: 15, threshold: 50, penalty: 20 },
+    wakeLogs: [],
+    spendLogs: [],
+    ledgerTotal: 0,
+    ledgerHistory: [],
+    lastCheckedDate: todayStr()
+  };
+}
+
+async function persist(){
+  try{
+    const res = await window.storage.set('state', JSON.stringify(state), false);
+    if(!res) console.error('Storage set returned null');
+  }catch(e){
+    console.error('Storage error', e);
+  }
+}
+
+function catchUp(){
+  const today = todayStr();
+  if(!state.lastCheckedDate){ state.lastCheckedDate = today; return; }
+  let cursor = addDays(state.lastCheckedDate, 1);
+  let safety = 0;
+  while(cursor < today && safety < 30){
+    const exists = state.wakeLogs.some(l => l.date === cursor);
+    if(!exists){
+      state.wakeLogs.push({ date: cursor, actualTime: null, status: 'missed' });
+      state.ledgerTotal += state.settings.penalty;
+      state.ledgerHistory.unshift({ date: cursor, amount: state.settings.penalty, reason: 'No wake-up logged' });
+    }
+    cursor = addDays(cursor, 1);
+    safety++;
+  }
+  state.lastCheckedDate = today;
+}
+
+async function init(){
+  try{
+    const res = await window.storage.get('state', false);
+    state = JSON.parse(res.value);
+  }catch(e){
+    state = defaultState();
+  }
+  if(!state.settings) state = defaultState();
+  catchUp();
+  await persist();
+  render();
+  setInterval(render, 30000);
+}
+
+// ---- actions ----
+function logWake(){
+  const now = new Date();
+  const ds = todayStr();
+  if(state.wakeLogs.some(l => l.date === ds)) return;
+  const actualMin = now.getHours()*60 + now.getMinutes();
+  const [th, tm] = state.settings.wakeTarget.split(':').map(Number);
+  const targetMin = th*60 + tm;
+  const diff = actualMin - targetMin;
+  const status = diff <= state.settings.grace ? 'ontime' : 'late';
+  state.wakeLogs.unshift({ date: ds, actualTime: fmtClock(now), status });
+  if(status === 'late'){
+    state.ledgerTotal += state.settings.penalty;
+    state.ledgerHistory.unshift({ date: ds, amount: state.settings.penalty, reason: 'Woke up late' });
+  }
+  persist(); render();
+}
+
+function submitWant(){
+  const item = document.getElementById('want-item').value.trim();
+  const amount = parseFloat(document.getElementById('want-amount').value);
+  if(!item || isNaN(amount) || amount <= 0) return;
+  if(amount < state.settings.threshold){
+    // below threshold, no rule applies, just close
+    addWantOpen = false;
+    persist(); render();
+    return;
+  }
+  const now = Date.now();
+  state.spendLogs.unshift({
+    id: String(now),
+    date: todayStr(),
+    item, amount,
+    createdAt: now,
+    availableAt: now + 24*60*60*1000,
+    status: 'waiting'
+  });
+  addWantOpen = false;
+  persist(); render();
+}
+
+function askBreak(id){ confirmBreakId = id; render(); }
+function cancelBreak(){ confirmBreakId = null; render(); }
+function confirmBreak(id){
+  const entry = state.spendLogs.find(s => s.id === id);
+  if(!entry || entry.status !== 'waiting') return;
+  entry.status = 'violated';
+  state.ledgerTotal += state.settings.penalty;
+  state.ledgerHistory.unshift({ date: todayStr(), amount: state.settings.penalty, reason: 'Broke the wait: ' + entry.item });
+  confirmBreakId = null;
+  persist(); render();
+}
+
+function resolveWant(id, outcome){
+  const entry = state.spendLogs.find(s => s.id === id);
+  if(!entry) return;
+  entry.status = outcome;
+  persist(); render();
+}
+
+function askPay(){ confirmPay = true; render(); }
+function cancelPay(){ confirmPay = false; render(); }
+function confirmPayNow(){
+  if(state.ledgerTotal > 0){
+    state.ledgerHistory.unshift({ date: todayStr(), amount: -state.ledgerTotal, reason: 'Paid out' });
+    state.ledgerTotal = 0;
+  }
+  confirmPay = false;
+  persist(); render();
+}
+
+function saveSettings(){
+  const wt = document.getElementById('set-wake').value;
+  const gr = parseInt(document.getElementById('set-grace').value, 10);
+  const th = parseFloat(document.getElementById('set-threshold').value);
+  const pen = parseFloat(document.getElementById('set-penalty').value);
+  if(wt) state.settings.wakeTarget = wt;
+  if(!isNaN(gr)) state.settings.grace = gr;
+  if(!isNaN(th)) state.settings.threshold = th;
+  if(!isNaN(pen)) state.settings.penalty = pen;
+  persist(); render();
+}
+
+function askReset(){ confirmReset = true; render(); }
+function cancelReset(){ confirmReset = false; render(); }
+async function confirmResetNow(){
+  state = defaultState();
+  confirmReset = false;
+  await persist();
+  render();
+}
+
+function toggleAddWant(){ addWantOpen = !addWantOpen; render(); }
+
+// ---- render ----
+function render(){
+  const app = document.getElementById('app');
+  const today = todayStr();
+  const wakeToday = state.wakeLogs.find(l => l.date === today);
+  const owed = state.ledgerTotal > 0;
+
+  let html = '';
+  html += '<p class="eyebrow">Wake / Spend — no exceptions</p>';
+  html += '<h1>The Ledger</h1>';
+
+  html += '<div class="total-block">';
+  html += '<div class="total-label">' + (owed ? 'Currently owed' : 'Account clear') + '</div>';
+  html += '<div class="total-figure ' + (owed ? 'owed' : 'clear') + '">' + (owed ? fmtMoney(state.ledgerTotal) : '$0.00') + '</div>';
+  if(owed){
+    html += '<div class="total-actions">';
+    if(confirmPay){
+      html += '<div class="btn-row"><button class="btn" onclick="confirmPayNow()">Confirm — send it</button><button class="btn btn-quiet" onclick="cancelPay()">Cancel</button></div>';
+    } else {
+      html += '<button class="btn btn-quiet" onclick="askPay()">Mark as paid out</button>';
+    }
+    html += '</div>';
+  }
+  html += '</div>';
+
+  // WAKE PANEL
+  html += '<div class="panel">';
+  html += '<div class="panel-head"><span class="panel-title">Wake</span><span class="panel-sub">target ' + state.settings.wakeTarget + '</span></div>';
+  if(wakeToday){
+    html += '<div class="row"><span class="row-date">Today</span><span class="row-mid">' + (wakeToday.actualTime || '—') + '</span><span class="badge ' + wakeToday.status + '">' + wakeToday.status + '</span></div>';
+  } else {
+    html += '<button class="btn" onclick="logWake()">Log wake-up</button>';
+  }
+  const recentWake = state.wakeLogs.filter(l => l.date !== today).slice(0, 6);
+  if(recentWake.length){
+    html += '<div style="margin-top:10px;">';
+    recentWake.forEach(l => {
+      html += '<div class="row"><span class="row-date">' + l.date.slice(5) + '</span><span class="row-mid">' + (l.actualTime || '—') + '</span><span class="badge ' + l.status + '">' + l.status + '</span></div>';
+    });
+    html += '</div>';
+  }
+  html += '</div>';
+
+  // SPEND PANEL
+  html += '<div class="panel">';
+  html += '<div class="panel-head"><span class="panel-title">Spend</span><span class="panel-sub">over ' + fmtMoney(state.settings.threshold) + ' waits 24h</span></div>';
+
+  if(addWantOpen){
+    html += '<div class="field"><label>What do you want to buy</label><input id="want-item" type="text" placeholder="e.g. new keyboard"></div>';
+    html += '<div class="field"><label>Amount</label><input id="want-amount" type="number" placeholder="0.00"></div>';
+    html += '<div class="btn-row"><button class="btn" onclick="submitWant()">Start the wait</button><button class="btn btn-quiet" onclick="toggleAddWant()">Cancel</button></div>';
+  } else {
+    html += '<button class="btn" onclick="toggleAddWant()">I want to buy something</button>';
+  }
+
+  const waiting = state.spendLogs.filter(s => s.status === 'waiting');
+  if(waiting.length){
+    html += '<div style="margin-top:10px;">';
+    waiting.forEach(s => {
+      const remaining = s.availableAt - Date.now();
+      const ready = remaining <= 0;
+      html += '<div class="row" style="flex-direction:column; align-items:flex-start; gap:4px;">';
+      html += '<div style="display:flex; justify-content:space-between; width:100%;"><span class="row-mid" style="padding:0;">' + s.item + ' — ' + fmtMoney(s.amount) + '</span><span class="badge waiting">waiting</span></div>';
+      if(ready){
+        html += '<div class="btn-row" style="margin-top:4px;"><button class="btn btn-quiet" onclick="resolveWant(\'' + s.id + '\',\'bought\')">Bought it</button><button class="btn btn-quiet" onclick="resolveWant(\'' + s.id + '\',\'skipped\')">Skipped it</button></div>';
+      } else {
+        const hrs = Math.floor(remaining / 3600000);
+        const mins = Math.floor((remaining % 3600000) / 60000);
+        html += '<span class="countdown">' + hrs + 'h ' + mins + 'm left</span>';
+        if(confirmBreakId === s.id){
+          html += '<div class="btn-row" style="margin-top:4px;"><button class="link-break" onclick="confirmBreak(\'' + s.id + '\')">Confirm — break it</button><button class="link-break" style="color:var(--muted);" onclick="cancelBreak()">Never mind</button></div>';
+        } else {
+          html += '<button class="link-break" onclick="askBreak(\'' + s.id + '\')">Break the rule now</button>';
+        }
+      }
+      html += '</div>';
+    });
+    html += '</div>';
+  }
+
+  const resolved = state.spendLogs.filter(s => s.status !== 'waiting').slice(0, 6);
+  if(resolved.length){
+    html += '<div style="margin-top:10px;">';
+    resolved.forEach(s => {
+      html += '<div class="row"><span class="row-date">' + s.date.slice(5) + '</span><span class="row-mid">' + s.item + '</span><span class="badge ' + s.status + '">' + s.status.replace('resolved-','') + '</span></div>';
+    });
+    html += '</div>';
+  }
+  if(!waiting.length && !resolved.length && !addWantOpen){
+    html += '<div class="empty">Nothing logged yet.</div>';
+  }
+  html += '</div>';
+
+  // SETTINGS
+  html += '<details><summary>Settings</summary><div class="settings-box">';
+  html += '<div class="field"><label>Wake target time</label><input id="set-wake" type="time" value="' + state.settings.wakeTarget + '"></div>';
+  html += '<div class="field"><label>Grace period (minutes)</label><input id="set-grace" type="number" value="' + state.settings.grace + '"></div>';
+  html += '<div class="field"><label>Spending threshold ($)</label><input id="set-threshold" type="number" value="' + state.settings.threshold + '"></div>';
+  html += '<div class="field"><label>Penalty per miss ($)</label><input id="set-penalty" type="number" value="' + state.settings.penalty + '"></div>';
+  html += '<button class="btn" onclick="saveSettings()">Save settings</button>';
+  html += '</div></details>';
+
+  html += '<p class="footer-note">';
+  if(confirmReset){
+    html += 'Erase all logs and history? <button onclick="confirmResetNow()">Yes, erase it</button> · <button onclick="cancelReset()">Cancel</button>';
+  } else {
+    html += '<button onclick="askReset()">Reset all data</button>';
+  }
+  html += '</p>';
+
+  app.innerHTML = html;
+}
+
+init();
+</script>
+</body>
+</html>
